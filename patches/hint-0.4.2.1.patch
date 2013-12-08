@@ -1,0 +1,91 @@
+diff -ru hint-0.4.2.1.orig/src/Hint/Base.hs hint-0.4.2.1/src/Hint/Base.hs
+--- hint-0.4.2.1.orig/src/Hint/Base.hs	2014-10-25 18:39:32.000000000 +0200
++++ hint-0.4.2.1/src/Hint/Base.hs	2014-10-25 17:33:39.000000000 +0200
+@@ -209,9 +209,11 @@
+         case (maybe_res, null es) of
+             (Nothing,True)  -> throwM $ UnknownError "Got no error message"
+             (Nothing,False) -> throwM $ WontCompile (reverse es)
+-            (Just a, True)  -> return a
++            (Just a, _)     -> return a
++{-
+             (Just _, False) -> fail $ "GHC returned a result but said: " ++
+                                       show es
++-}
+ 
+ -- ================= Debugging stuff ===============
+ 
+diff -ru hint-0.4.2.1.orig/src/Hint/Compat.hs hint-0.4.2.1/src/Hint/Compat.hs
+--- hint-0.4.2.1.orig/src/Hint/Compat.hs	2014-10-25 18:39:32.000000000 +0200
++++ hint-0.4.2.1/src/Hint/Compat.hs	2014-10-25 17:33:39.000000000 +0200
+@@ -121,7 +121,11 @@
+ 
+ #if __GLASGOW_HASKELL__ >= 610
+ configureDynFlags :: GHC.DynFlags -> GHC.DynFlags
+-configureDynFlags dflags = dflags{GHC.ghcMode    = GHC.CompManager,
++configureDynFlags dflags =
++-- HACK
++    (if GHC.dynamicGhc then GHC.addWay' GHC.WayDyn else id)
++-- END HACK
++                           dflags{GHC.ghcMode    = GHC.CompManager,
+                                   GHC.hscTarget  = GHC.HscInterpreted,
+                                   GHC.ghcLink    = GHC.LinkInMemory,
+                                   GHC.verbosity  = 0}
+diff -ru hint-0.4.2.1.orig/src/Hint/Extension.hs hint-0.4.2.1/src/Hint/Extension.hs
+--- hint-0.4.2.1.orig/src/Hint/Extension.hs	2014-10-25 18:39:32.000000000 +0200
++++ hint-0.4.2.1/src/Hint/Extension.hs	2014-10-25 17:33:39.000000000 +0200
+@@ -1,7 +1,8 @@
+ -- this module was automatically generated. do not edit!
+ -- edit util/mk_extensions_mod.hs instead
+ module Hint.Extension (Extension(..),
+-                       knownExtensions, availableExtensions, asExtension)
++                       knownExtensions, availableExtensions, asExtension,
++                       asExtension')
+ 
+ where
+ 
+@@ -12,11 +13,14 @@
+ availableExtensions = map asExtension Compat.supportedExtensions
+ 
+ asExtension :: String -> Extension
+-asExtension s = if isKnown s
+-                  then read s
++asExtension s = fst (asExtension' s False)
++
++asExtension' :: String -> Bool -> (Extension, Bool)
++asExtension' s f = if isKnown s
++                  then (read s, f)
+                   else let no_s = "No" ++ s
+-                  in if isKnown no_s then read no_s
+-                                     else UnknownExtension s
++                  in if isKnown no_s then (read no_s, not f)
++                                     else (UnknownExtension s, f)
+   where isKnown e = e `elem` map show knownExtensions
+ 
+ -- | This represents language extensions beyond Haskell 98
+diff -ru hint-0.4.2.1.orig/src/Hint/GHC.hs hint-0.4.2.1/src/Hint/GHC.hs
+--- hint-0.4.2.1.orig/src/Hint/GHC.hs	2014-10-25 18:39:32.000000000 +0200
++++ hint-0.4.2.1/src/Hint/GHC.hs	2014-10-25 17:33:39.000000000 +0200
+@@ -80,6 +80,10 @@
+ import ConLike      ( ConLike(RealDataCon) )
+ #endif
+ 
++-- HACK
++import DynFlags     ( addWay', Way(..), dynamicGhc )
++-- END HACK
++
+ #if __GLASGOW_HASKELL__ >= 706
+ type Message = MsgDoc
+ #endif
+diff -ru hint-0.4.2.1.orig/src/Hint/InterpreterT.hs hint-0.4.2.1/src/Hint/InterpreterT.hs
+--- hint-0.4.2.1.orig/src/Hint/InterpreterT.hs	2014-10-25 18:39:32.000000000 +0200
++++ hint-0.4.2.1/src/Hint/InterpreterT.hs	2014-10-25 17:33:39.000000000 +0200
+@@ -132,7 +132,7 @@
+ #endif
+        let toOpt e     = let err = error ("init error: unknown ext:" ++ show e)
+                          in fromMaybe err (lookup e extMap)
+-       let getOptVal e = (asExtension e, GHC.xopt (toOpt e) df2)
++       let getOptVal e = asExtension' e (GHC.xopt (toOpt e) df2)
+        let defExts = map  getOptVal Compat.supportedExtensions
+ #else
+        let defExts = zip availableExtensions (repeat False)
+Only in hint-0.4.2.1/src/Hint: InterpreterT.hs.orig
