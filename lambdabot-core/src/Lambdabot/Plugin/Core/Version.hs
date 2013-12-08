@@ -16,8 +16,8 @@ versionPlugin = newModule
                 "version/source. Report the version " ++
                 "and git repo of this bot"
             , process = const $ do
-                say $ "lambdabot " ++ showVersion version
-                say "git clone git://github.com/mokus0/lambdabot.git"
+                say $ "lambdabot " ++ showVersion version ++ "-int-e"
+                say "git clone git://github.com/int-e/lambdabot.git"
             }
         ]
     }
