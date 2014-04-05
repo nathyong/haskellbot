@@ -8,9 +8,12 @@ import Lambdabot.IRC
 import Lambdabot.Monad
 import Lambdabot.Plugin
 import Lambdabot.Util
+import Lambdabot.Logging
+import Lambdabot.Nick
 
 import Control.Monad.State (gets, modify)
 import Control.Monad.Trans
+import Control.Monad (when)
 import qualified Data.Map as M
 import qualified Data.Set as S
 
@@ -69,6 +72,7 @@ systemPlugin = newModule
             { privileged = True
             , help = say "join <channel>"
             , process = \rest -> do
+                logCmd "join" rest
                 chan <- readNick rest
                 lb $ send (joinChannel chan)
             }
@@ -77,6 +81,7 @@ systemPlugin = newModule
             , help = say "part <channel>"
             , aliases = ["leave"]
             , process = \rest -> do
+                logCmd "part" rest
                 chan <- readNick rest
                 lb $ send (partChannel chan)
             }
@@ -111,7 +116,9 @@ systemPlugin = newModule
         , (command "admin")
             { privileged = True
             , help = say "admin [+|-] nick. change a user's admin status."
-            , process = doAdmin
+            , process = \rest -> do
+                logCmd "admin" rest
+                doAdmin rest
             }
         , (command "ignore")
             { privileged = True
@@ -129,6 +136,12 @@ systemPlugin = newModule
     }
 
 ------------------------------------------------------------------------
+
+logCmd :: String -> String -> Cmd System ()
+logCmd cmd rest = do
+    sender <- getSender
+    when (sender /= Nick "offlinerc" "null") $
+        noticeM $ "[" ++ fmtNick "" sender ++ "] @" ++ cmd ++ " " ++ rest
 
 doList :: String -> Cmd System ()
 doList "" = say "What module?  Try @listmodules for some ideas."
