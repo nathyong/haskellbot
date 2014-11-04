@@ -1,5 +1,7 @@
 #!/bin/sh
 
+git pull origin
+
 cabal sandbox init --sandbox sandbox
 
 for d in lambdabot*
