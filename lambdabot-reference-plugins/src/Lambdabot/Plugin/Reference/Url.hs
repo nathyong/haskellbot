@@ -51,12 +51,7 @@ urlPlugin = newModule
       if alive && (not $ areSubstringsOf ignoredStrings text)
         then case containsUrl text of
                Nothing  -> return ()
-               Just url
-                 | length url > 60 -> do
-                     title <- fetchTitle url
-                     tiny  <- fetchTiny  url
-                     say (intercalate ", " (catMaybes [title, tiny]))
-                 | otherwise -> mbSay =<< fetchTitle url
+               Just url -> mbSay =<< fetchTitle url
         else return ()
     }
 
